@@ -1,6 +1,6 @@
-# Sidequest Workflow OSINT
+# Workzint
 
-Ce projet est un workflow automatisé pour effectuer des analyses OSINT (Open Source Intelligence) sur des adresses email et des noms d'utilisateur. Il combine plusieurs outils et scripts pour collecter, fusionner et analyser des données provenant de différentes sources, tout en générant des rapports détaillés.
+Ce projet est un workflow automatisé pour effectuer des analyses OSINT sur des adresses email et des noms d'utilisateur. Il combine plusieurs outils et scripts pour collecter, fusionner et analyser des données provenant de différentes sources, tout en générant des rapports détaillés.
 
 ## Objectifs du projet
 
