@@ -216,3 +216,75 @@ Les contributions sont les bienvenues ! Si vous souhaitez améliorer ce projet, 
 ## Licence
 
 Ce projet est sous licence MIT. Consultez le fichier `LICENSE` pour plus d'informations.
+
+## Diagramme du Workflow
+
+Voici un diagramme représentant le workflow global du projet. Ce diagramme est compatible avec GitHub si l'option de rendu Mermaid est activée.
+
+```mermaid
+flowchart TD
+    %% Entrée & Gestion des Données
+    subgraph "Entrée & Gestion des Données"
+        Input["API & DB"]
+    end
+
+    %% Orchestration
+    subgraph "Orchestration"
+        God["god.py (Orchestrateur)"]
+    end
+
+    %% Module de Collecte de Données
+    subgraph "Module de Collecte de Données"
+        Holehe["holeheson.py (Holehe)"]
+        SpiderFood["spiderfood.py (SpiderFoot)"]
+        Sherlock["cherchlock.py (Sherlock)"]
+    end
+
+    %% Outils Externes
+    subgraph "Outils Externes"
+        Docker["Conteneurs Docker"]
+    end
+
+    %% Agrégation des Données & Génération de Rapports
+    subgraph "Agrégation des Données & Génération de Rapports"
+        Merge["merge.py (Agrégation des Données)"]
+        Rapport["rapport.py (Génération de Rapports)"]
+        Screenshots["Capture d'Écran"]
+        Pandoc["Pandoc (Convertisseur PDF)"]
+        ReportsStore["Stockage des Rapports\n(Markdown/PDF)"]
+        ScreensStore["Stockage des Captures d'Écran"]
+    end
+
+    %% Interface Web
+    subgraph "Résultats"
+        Analyse["Page d'Analyse Web (UI)"]
+        WebAPI["Analyse des rapports"]
+    end
+
+    %% Connexions
+    Input -->|"alimente"| God
+    God -->|"déclenche"| Holehe
+    God -->|"déclenche"| SpiderFood
+    God -->|"déclenche"| Sherlock
+
+    Docker ---|"conteneurise"| Holehe
+    Docker ---|"conteneurise"| SpiderFood
+    Docker ---|"conteneurise"| Sherlock
+
+    Holehe -->|"produit JSON"| Merge
+    SpiderFood -->|"produit JSON"| Merge
+    Sherlock -->|"produit JSON"| Merge
+
+    Merge -->|"agrège les données"| Rapport
+    Merge -->|"capture les liens"| Screenshots
+
+    Rapport -->|"génère"| ReportsStore
+    Rapport -->|"convertit via"| Pandoc
+    Pandoc -->|"produit PDF"| ReportsStore
+
+    Screenshots -->|"enregistre dans"| ScreensStore
+
+    Merge -->|"affiche dans"| Analyse
+    ReportsStore --> WebAPI
+    ScreensStore --> WebAPI
+```
