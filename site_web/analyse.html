@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Analyse OSINT</title>
+  <link href="https://fonts.googleapis.com/css?family=Poppins:400,500,600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #2c3e50, #1a252f);
+      color: #ecf0f1;
+      font-family: 'Poppins', Arial, sans-serif;
+      font-size: 16px;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      background-color: #2a2a2a;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      max-width: 1200px;
+      width: 100%;
+      padding: 40px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 32px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .col-half {
+      flex: 1 1 50%;
+      min-width: 300px;
+    }
+
+    .card {
+      background-color: #3a3a3a;
+      border: none;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+    }
+
+    .card-header {
+      font-weight: 600;
+      font-size: 18px;
+      margin-bottom: 15px;
+      text-align: center;
+      color: #ecf0f1;
+      border-bottom: 1px solid #555;
+      padding-bottom: 10px;
+    }
+
+    input[type="file"],
+    select,
+    button {
+      width: 100%;
+      padding: 12px 15px;
+      margin: 8px 0;
+      border: 1px solid #555;
+      border-radius: 4px;
+      background-color: #3a3a3a;
+      color: #ecf0f1;
+      font-family: 'Poppins', Arial, sans-serif;
+    }
+
+    button {
+      background-color: #27ae60;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #219150;
+    }
+
+    .list-group {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .list-group-item {
+      padding: 10px;
+      border-bottom: 1px solid #555;
+    }
+
+    .list-group-item:last-child {
+      border-bottom: none;
+    }
+
+    canvas {
+      background-color: #fff;
+      border-radius: 4px;
+    }
+
+    a {
+      color: #27ae60;
+      text-decoration: none;
+      margin-left: 5px;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px;
+      }
+
+      input[type="file"],
+      select,
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Analyse OSINT</h1>
+    <div class="row">
+      <div class="col-half">
+        <div class="card">
+          <div class="card-header">Importer Fichier JSON</div>
+          <div class="card-body">
+            <input type="file" id="jsonFileInput" accept=".json">
+            <button id="loadButton">Charger le fichier JSON</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">Sélection de l'Email</div>
+          <div class="card-body">
+            <label for="emailSelect">Choisissez un email :</label>
+            <select id="emailSelect">
+              <option value="">-- Choisissez un email --</option>
+            </select>
+            <div id="emailDetails"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">Statistiques Générales</div>
+          <div class="card-body">
+            <div id="statsDisplay">
+              <p>Total d'emails : N/A</p>
+              <p>Total des merged_services : N/A</p>
+              <p>Moyenne de merged_services par email : N/A</p>
+              <p>Utilisateurs sans merged_services : N/A</p>
+              <p>Total des hacked_services : N/A</p>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">Statistiques par Utilisateur</div>
+          <div class="card-body">
+            <div id="userStatsDisplay">
+              <p>Aucune statistique à afficher.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-half">
+        <div class="card">
+          <div class="card-header">Graphique : Merged Services par Email</div>
+          <div class="card-body">
+            <button id="showEmailServiceChart">Afficher le graphique</button>
+            <canvas id="emailServiceChartCanvas" width="600" height="300"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">Graphique Global par Merged Service</div>
+          <div class="card-body">
+            <button id="showServiceChart">Afficher le graphique</button>
+            <canvas id="serviceChartCanvas" width="600" height="300"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    let dataset = [];
+    document.getElementById('loadButton').addEventListener('click', function () {
+      const fileInput = document.getElementById('jsonFileInput');
+      if (fileInput.files.length === 0) {
+        alert("Veuillez sélectionner un fichier JSON.");
+        return;
+      }
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        try {
+          let data = JSON.parse(event.target.result);
+          if (!Array.isArray(data)) {
+            if (data.results && Array.isArray(data.results)) {
+              data = data.results;
+            } else {
+              throw new Error("Le format JSON n'est pas celui attendu.");
+            }
+          }
+          dataset = data;
+          populateEmailSelect(data);
+          updateGlobalStats(data);
+        } catch (error) {
+          alert("Erreur lors du parsing du fichier JSON : " + error);
+        }
+      };
+      reader.readAsText(file);
+    });
+    function populateEmailSelect(data) {
+      const emailSelect = document.getElementById('emailSelect');
+      emailSelect.innerHTML = '<option value="">-- Choisissez un email --</option>';
+      data.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.email;
+        option.textContent = item.email;
+        emailSelect.appendChild(option);
+      });
+    }
+    function updateGlobalStats(data) {
+      const totalEmails = data.length;
+      let totalMerged = 0;
+      let totalHacked = 0;
+      let usersWithNoMerged = 0;
+      data.forEach(item => {
+        const mergedCount = Array.isArray(item.merged_services) ? item.merged_services.length : 0;
+        totalMerged += mergedCount;
+        if (mergedCount === 0) usersWithNoMerged++;
+        totalHacked += Array.isArray(item.hacked_services) ? item.hacked_services.length : 0;
+      });
+      const avgMerged = totalEmails ? (totalMerged / totalEmails).toFixed(2) : 0;
+      document.getElementById('statsDisplay').innerHTML = `
+        <p>Total d'emails : ${totalEmails}</p>
+        <p>Total des merged_services : ${totalMerged}</p>
+        <p>Moyenne de merged_services par email : ${avgMerged}</p>
+        <p>Utilisateurs sans merged_services : ${usersWithNoMerged}</p>
+        <p>Total des hacked_services : ${totalHacked}</p>
+      `;
+    }
+    function updateUserStats(entry) {
+      const mergedCount = Array.isArray(entry.merged_services) ? entry.merged_services.length : 0;
+      const hackedCount = Array.isArray(entry.hacked_services) ? entry.hacked_services.length : 0;
+      const usernamesCount = Array.isArray(entry.usernames) ? entry.usernames.length : 0;
+      document.getElementById('userStatsDisplay').innerHTML = `
+        <p>Email : ${entry.email}</p>
+        <p>Nombre de merged_services : ${mergedCount}</p>
+        <p>Nombre de hacked_services : ${hackedCount}</p>
+        <p>Nombre de usernames : ${usernamesCount}</p>
+      `;
+    }
+    document.getElementById('emailSelect').addEventListener('change', function () {
+      const selectedEmail = this.value;
+      const detailsDiv = document.getElementById('emailDetails');
+      detailsDiv.innerHTML = "";
+      if (!selectedEmail) {
+        document.getElementById('userStatsDisplay').innerHTML = `<p>Aucune statistique à afficher.</p>`;
+        return;
+      }
+      const entry = dataset.find(item => item.email === selectedEmail);
+      if (entry) {
+        let html = "";
+        html += `<h5>Email</h5><p>${entry.email}</p>`;
+        html += `<h5>Nom</h5><p>${entry.name ? entry.name : "Non renseigné"}</p>`;
+        html += `<h5>Usernames</h5>`;
+        if (entry.usernames && entry.usernames.length > 0) {
+          html += `<ul class="list-group">`;
+          entry.usernames.forEach(username => {
+            html += `<li class="list-group-item">${username}</li>`;
+          });
+          html += `</ul>`;
+        } else {
+          html += `<p>Aucun username disponible.</p>`;
+        }
+        html += `<h5>Merged Services</h5>`;
+        if (entry.merged_services && entry.merged_services.length > 0) {
+          html += `<ul class="list-group">`;
+          entry.merged_services.forEach(service => {
+            let serviceText = service;
+            if (service.includes("->")) {
+              const parts = service.split("->");
+              const serviceName = parts[0];
+              const url = parts[1];
+              serviceText = serviceName;
+              if (url && url !== "NULL") {
+                serviceText += ` <a href="${url}" target="_blank">(ici)</a>`;
+              }
+            }
+            html += `<li class="list-group-item">${serviceText}</li>`;
+          });
+          html += `</ul>`;
+        } else {
+          html += `<p>Aucun merged service disponible.</p>`;
+        }
+        html += `<h5>Hacked Services</h5>`;
+        if (entry.hacked_services && entry.hacked_services.length > 0) {
+          html += `<ul class="list-group">`;
+          entry.hacked_services.forEach(service => {
+            html += `<li class="list-group-item">${service}</li>`;
+          });
+          html += `</ul>`;
+        } else {
+          html += `<p>Aucun hacked service disponible.</p>`;
+        }
+        detailsDiv.innerHTML = html;
+        updateUserStats(entry);
+      } else {
+        detailsDiv.textContent = "Email non trouvé.";
+        document.getElementById('userStatsDisplay').innerHTML = `<p>Aucune statistique à afficher.</p>`;
+      }
+    });
+    document.getElementById('showEmailServiceChart').addEventListener('click', function () {
+      if (!dataset || dataset.length === 0) return;
+      const emails = dataset.map(item => item.email);
+      const serviceCounts = dataset.map(item => Array.isArray(item.merged_services) ? item.merged_services.length : 0);
+      const ctx = document.getElementById('emailServiceChartCanvas').getContext('2d');
+      if (window.emailServiceChart) {
+        window.emailServiceChart.destroy();
+      }
+      window.emailServiceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: emails,
+          datasets: [{
+            label: "Nombre de merged services par email",
+            data: serviceCounts,
+            backgroundColor: 'rgba(255, 159, 64, 0.5)',
+            borderColor: 'rgba(255, 159, 64, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Nombre de merged services'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Emails'
+              }
+            }
+          }
+        }
+      });
+    });
+    document.getElementById('showServiceChart').addEventListener('click', function () {
+      if (!dataset || dataset.length === 0) return;
+      const serviceFrequency = {};
+      dataset.forEach(item => {
+        if (item.merged_services && Array.isArray(item.merged_services)) {
+          item.merged_services.forEach(service => {
+            let serviceName = service;
+            if (service.includes("->")) {
+              serviceName = service.split("->")[0];
+            }
+            serviceFrequency[serviceName] = (serviceFrequency[serviceName] || 0) + 1;
+          });
+        }
+      });
+      const services = Object.keys(serviceFrequency);
+      const counts = services.map(service => serviceFrequency[service]);
+      const ctx = document.getElementById('serviceChartCanvas').getContext('2d');
+      if (window.serviceChart) {
+        window.serviceChart.destroy();
+      }
+      window.serviceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: services,
+          datasets: [{
+            label: "Nombre d'emails utilisant le merged service",
+            data: counts,
+            backgroundColor: 'rgba(75, 192, 192, 0.5)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Nombre d\'emails'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Merged Services'
+              }
+            }
+          }
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
